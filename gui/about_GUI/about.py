@@ -32,12 +32,13 @@ def About(parent):
     )
 
     canvas.create_rectangle(
-        38.0,
-        101.0,
-        955.0,
-        103.0,
-        fill="#000000",
-        outline="")
+        32.0,
+        100.0,
+        949.0,
+        102.0,
+        fill="#C8ACD6",
+        outline=""
+    )
 
     global about_image_1
     about_image_1 = PhotoImage(file=relative_to_assets("image_1.png"))
@@ -66,7 +67,7 @@ def About(parent):
     )
 
     canvas.create_text(
-        333.0,
+        283.0,
         384.0,
         anchor="nw",
         text="What we Do",
@@ -75,7 +76,7 @@ def About(parent):
     )
 
     canvas.create_text(
-        370.0,
+        320.0,
         438.0,
         anchor="nw",
         text="The Football Video Analyzer app uses cutting-edge\nAI technology to thoroughly analyze football match\nvideos, delivering detailed statistics, player\nperformance metrics, and strategic insights.",

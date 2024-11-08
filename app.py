@@ -2,6 +2,7 @@ from tkinter import *
 from pathlib import Path
 from gui.home_GUI.home import Home
 from gui.analysis_GUI.analysis import Analysis
+from gui.statistics_GUI.statistics import Statistics
 from gui.about_GUI.about import About
 
 OUTPUT_PATH = Path(__file__).parent
@@ -20,6 +21,9 @@ def handle_button_press(btn_name):
     elif btn_name == "analysis":
         analysis_button.config(image=analysis_button_active_image)
         current_window = Analysis(window)
+    elif btn_name == "statistics":
+        statistics_button.config(image=statistics_button_active_image)
+        current_window = Statistics(window)
     elif btn_name == "about":
         about_button.config(image=about_button_active_image)
         current_window = About(window)
@@ -27,6 +31,7 @@ def handle_button_press(btn_name):
 def reset_button_images():
     home_button.config(image=home_button_default_image)
     analysis_button.config(image=analysis_button_default_image)
+    statistics_button.config(image=statistics_button_default_image)
     about_button.config(image=about_button_default_image)
 
 
@@ -83,7 +88,7 @@ home_button = Button(
 )
 home_button.place(
     x=15.0,
-    y=286.0,
+    y=254.0,
     width=220.0,
     height=48.0
 )
@@ -104,7 +109,28 @@ analysis_button = Button(
 )
 analysis_button.place(
     x=15.0,
-    y=348.0,
+    y=317.0,
+    width=220.0,
+    height=48.0
+)
+###########################################
+
+############# STATISTICS BUTTON #############
+statistics_button_default_image = PhotoImage(file=relative_to_assets("statistics.png"))
+statistics_button_active_image = PhotoImage(file=relative_to_assets("statistics_1.png"))
+statistics_button = Button(
+    image=statistics_button_default_image,
+    bg="#17153B",
+    borderwidth=0,
+    highlightthickness=0,
+    command=lambda: handle_button_press("statistics"),
+    relief="flat",
+    activebackground="#17153B",
+    activeforeground="#17153B"
+)
+statistics_button.place(
+    x=15.0,
+    y=380.0,
     width=220.0,
     height=48.0
 )
@@ -125,7 +151,7 @@ about_button = Button(
 )
 about_button.place(
     x=15.0,
-    y=411.0,
+    y=443.0,
     width=220.0,
     height=48.0
 )

@@ -31,6 +31,15 @@ def Analysis(parent):
         font=("Lato ExtraBold", 35 * -1)
     )
 
+    canvas.create_rectangle(
+        32.0,
+        100.0,
+        949.0,
+        102.0,
+        fill="#C8ACD6",
+        outline=""
+    )
+
     global upload_button_image
     upload_button_image = PhotoImage(
         file=relative_to_assets("upload.png")
