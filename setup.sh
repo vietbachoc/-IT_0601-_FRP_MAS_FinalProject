@@ -24,16 +24,16 @@ else
     echo "'videos' directory already exists."
 fi
 
-# Download the models into 'backend/models' using curl
-curl -L -o "$DIR/backend/models/football-ball-detection.pt" "https://drive.google.com/uc?id=1kulJgSLBrZdKLsm-b-q_EOCAYrtOyUO_"
-curl -L -o "$DIR/backend/models/football-player-detection.pt" "https://drive.google.com/uc?id=1-g2ijN-XP9YB1mqkfysB9MhoFzruZ9Hk"
-curl -L -o "$DIR/backend/models/football-pitch-detection.pt" "https://drive.google.com/uc?id=1bi807YZ6s_zyCWsSnQgiMOGiU_KzvkaQ"
+# download the models into 'backend/models'
+gdown -O "$DIR/backend/models/football-ball-detection.pt" "https://drive.google.com/uc?id=1kulJgSLBrZdKLsm-b-q_EOCAYrtOyUO_"
+gdown -O "$DIR/backend/models/football-player-detection.pt" "https://drive.google.com/uc?id=1-g2ijN-XP9YB1mqkfysB9MhoFzruZ9Hk"
+gdown -O "$DIR/backend/models/football-pitch-detection.pt" "https://drive.google.com/uc?id=1bi807YZ6s_zyCWsSnQgiMOGiU_KzvkaQ"
 
-# Download the videos into 'videos' using curl
-curl -L -o "$DIR/videos/0bfacc_0.mp4" "https://drive.google.com/uc?id=11gspdS21z99gZUIiRq5FyRlWc0UDMe-l"
-curl -L -o "$DIR/videos/2e57b9_0.mp4" "https://drive.google.com/uc?id=19o26em2UpDY9F_Mmh8eB0tXlVJQ0mm-b"
-curl -L -o "$DIR/videos/08fd33_0.mp4" "https://drive.google.com/uc?id=1O5yJvdBUIEnZyBNMWMloGjxg79b18pwT"
-curl -L -o "$DIR/videos/573e61_0.mp4" "https://drive.google.com/uc?id=1XJ8eV2Yk5kAfpVIDoCf9BRn1eHNNIDH-"
-curl -L -o "$DIR/videos/121364_0.mp4" "https://drive.google.com/uc?id=1mozkXChZK0JyP1q0gfIawnVpt7y4200Z"
+# download the videos into 'videos'
+gdown -O "$DIR/videos/0bfacc_0.mp4" "https://drive.google.com/uc?id=11gspdS21z99gZUIiRq5FyRlWc0UDMe-l"
+gdown -O "$DIR/videos/2e57b9_0.mp4" "https://drive.google.com/uc?id=19o26em2UpDY9F_Mmh8eB0tXlVJQ0mm-b"
+gdown -O "$DIR/videos/08fd33_0.mp4" "https://drive.google.com/uc?id=1O5yJvdBUIEnZyBNMWMloGjxg79b18pwT"
+gdown -O "$DIR/videos/573e61_0.mp4" "https://drive.google.com/uc?id=1XJ8eV2Yk5kAfpVIDoCf9BRn1eHNNIDH-"
+gdown -O "$DIR/videos/121364_0.mp4" "https://drive.google.com/uc?id=1mozkXChZK0JyP1q0gfIawnVpt7y4200Z"
 
 echo "Download complete!"
