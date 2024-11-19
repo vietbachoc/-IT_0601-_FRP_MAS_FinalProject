@@ -7,11 +7,22 @@ import pandas as pd
 import cv2
 import sys 
 sys.path.append('../')
-from utils import get_center_of_bbox, get_bbox_width, get_foot_position
+from backend.utils import get_center_of_bbox, get_bbox_width, get_foot_position
+import torch
 
 class Tracker:
     def __init__(self, model_path):
-        self.model = YOLO(model_path) 
+        # Determine device
+        self.device = 'cpu'
+        if torch.cuda.is_available():
+            self.device = 'cuda'
+            torch.cuda.empty_cache()
+        elif torch.backends.mps.is_available():
+            self.device = 'mps'
+            torch.mps.empty_cache()
+            
+        self.model = YOLO(model_path)
+        self.model.to(self.device)
         self.tracker = sv.ByteTrack()
 
     def add_position_to_tracks(sekf,tracks):
@@ -38,15 +49,41 @@ class Tracker:
         return ball_positions
 
     def detect_frames(self, frames):
-        batch_size=20 
-        detections = [] 
-        for i in range(0,len(frames),batch_size):
-            detections_batch = self.model.predict(frames[i:i+batch_size],conf=0.1)
-            detections += detections_batch
+        # Reduce batch size to prevent memory issues
+        batch_size = 25
+        detections = []
+        
+        try:
+            for i in range(0, len(frames), batch_size):
+                batch = frames[i:i+batch_size]
+                if self.device == 'cuda':
+                    torch.cuda.empty_cache()
+                
+                with torch.no_grad():
+                    detections_batch = self.model.predict(
+                        batch, 
+                        conf=0.1, 
+                        device=self.device,
+                        half=True
+                    )
+                detections += detections_batch
+                
+                del detections_batch
+                if self.device == 'cuda':
+                    torch.cuda.empty_cache()
+                
+        except RuntimeError as e:
+            self.device = 'cpu'
+            self.model.to('cpu')
+            # Retry with CPU
+            for i in range(0, len(frames), batch_size):
+                batch = frames[i:i+batch_size]
+                detections_batch = self.model.predict(batch, conf=0.1, device='cpu')
+                detections += detections_batch
+                
         return detections
 
     def get_object_tracks(self, frames, read_from_stub=False, stub_path=None):
-        
         if read_from_stub and stub_path is not None and os.path.exists(stub_path):
             with open(stub_path,'rb') as f:
                 tracks = pickle.load(f)
