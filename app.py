@@ -1,9 +1,10 @@
 from tkinter import *
 from pathlib import Path
 from gui.home_GUI.home import Home
-from gui.analysis_GUI.analysis import Analysis
+from gui.analysis_GUI.analysis import Analysis, output_video_path, stop_video_stream
 from gui.statistics_GUI.statistics import Statistics
 from gui.about_GUI.about import About
+import os
 
 OUTPUT_PATH = Path(__file__).parent
 ASSETS_PATH = OUTPUT_PATH / Path("./gui/assets")
@@ -13,7 +14,11 @@ def relative_to_assets(path: str) -> Path:
 # ~ FUNCTIONS FOR BUTTONS FOR CHANGING TABS ~ #
 def handle_button_press(btn_name):
     global current_window
-    reset_button_images()  # Reset images before setting the new active button
+    reset_button_images()
+
+    # Stop video if leaving analysis page
+    if hasattr(current_window, 'stop_video_stream'):
+        current_window.stop_video_stream()
 
     if btn_name == "home":
         home_button.config(image=home_button_active_image)
@@ -21,6 +26,9 @@ def handle_button_press(btn_name):
     elif btn_name == "analysis":
         analysis_button.config(image=analysis_button_active_image)
         current_window = Analysis(window)
+        # Restart video if returning to analysis page
+        if hasattr(current_window, 'display_video') and os.path.exists(output_video_path):
+            current_window.display_video()
     elif btn_name == "statistics":
         statistics_button.config(image=statistics_button_active_image)
         current_window = Statistics(window)

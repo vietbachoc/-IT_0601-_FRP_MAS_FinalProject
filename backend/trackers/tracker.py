@@ -21,6 +21,8 @@ class Tracker:
             self.device = 'mps'
             torch.mps.empty_cache()
             
+        print(f"Using device: {self.device}")
+            
         self.model = YOLO(model_path)
         self.model.to(self.device)
         self.tracker = sv.ByteTrack()
@@ -54,6 +56,7 @@ class Tracker:
         detections = []
         
         try:
+            print(f"Attempting detection with {self.device}")
             for i in range(0, len(frames), batch_size):
                 batch = frames[i:i+batch_size]
                 if self.device == 'cuda':
@@ -73,6 +76,7 @@ class Tracker:
                     torch.cuda.empty_cache()
                 
         except RuntimeError as e:
+            print(f"RuntimeError occurred with {self.device}, falling back to CPU")
             self.device = 'cpu'
             self.model.to('cpu')
             # Retry with CPU

@@ -1,4 +1,6 @@
 --find-links https://download.pytorch.org/whl/cu118
+tk
+tk-tools
 torch
 torchvision
 torchaudio
@@ -8,7 +10,8 @@ matplotlib
 scikit-learn
 pillow
 tqdm
-scikit_learn==1.4.2
-supervision==0.25.0
-ultralytics==8.3.33
+scikit_learn
+supervision
+ultralytics
 gdown
+sentencepiece
