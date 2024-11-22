@@ -1,169 +1,171 @@
+import logging
 import torch
-import torch.nn as nn
-from sklearn.cluster import KMeans
-import numpy as np
+import umap
 import cv2
+import numpy as np
+from sklearn.cluster import KMeans
+from typing import Dict, List, Optional, Tuple
+from transformers import AutoProcessor, SiglipVisionModel
+
+from .constants import (
+    SIGLIP_MODEL_NAME, 
+    BATCH_SIZE, 
+    IMAGE_SIZE,
+    UMAP_CONFIG,
+    TEAM_COLORS,
+    MIN_PLAYERS
+)
+
+logger = logging.getLogger(__name__)
+
+class TeamClassifier:
+    """Classifies players into teams using computer vision and clustering"""
+    
+    def __init__(self, device: str = 'cpu'):
+        """
+        Initialize team classifier
+        Args:
+            device: Computing device ('cpu', 'cuda', or 'mps')
+        """
+        self.device = device
+        self.batch_size = BATCH_SIZE
+        self._initialize_models()
+
+    def _initialize_models(self) -> None:
+        """Initialize vision and clustering models"""
+        try:
+            self.model = SiglipVisionModel.from_pretrained(SIGLIP_MODEL_NAME).to(self.device)
+            self.processor = AutoProcessor.from_pretrained(SIGLIP_MODEL_NAME)
+            self.reducer = umap.UMAP(**UMAP_CONFIG)
+            self.kmeans = KMeans(n_clusters=2, random_state=42)
+        except Exception as e:
+            logger.error(f"Model initialization failed: {str(e)}")
+            raise
+
+    def _create_batches(self, crops: List[np.ndarray]) -> List[List[np.ndarray]]:
+        """Create batches of images for processing"""
+        return [crops[i:i + self.batch_size] for i in range(0, len(crops), self.batch_size)]
+
+    def _extract_features(self, crops: List[np.ndarray]) -> np.ndarray:
+        """Extract features from player crops using vision model"""
+        try:
+            features = []
+            crops = [cv2.cvtColor(crop, cv2.COLOR_BGR2RGB) for crop in crops]
+            
+            with torch.no_grad():
+                for batch in self._create_batches(crops):
+                    inputs = self.processor(images=batch, return_tensors="pt").to(self.device)
+                    outputs = self.model(**inputs)
+                    batch_features = torch.mean(outputs.last_hidden_state, dim=1)
+                    features.append(batch_features.cpu().numpy())
+                    
+            return np.concatenate(features)
+        except Exception as e:
+            logger.error(f"Feature extraction failed: {str(e)}")
+            raise
+
+    def _get_player_crop(self, frame: np.ndarray, bbox: List[float]) -> Optional[np.ndarray]:
+        """Extract and resize player crop from frame"""
+        try:
+            y1, y2 = max(int(bbox[1]), 0), min(int(bbox[3]), frame.shape[0])
+            x1, x2 = max(int(bbox[0]), 0), min(int(bbox[2]), frame.shape[1])
+            
+            if y2 <= y1 or x2 <= x1:
+                return None
+                
+            crop = frame[y1:y2, x1:x2]
+            if crop.size == 0:
+                return None
+                
+            return cv2.resize(crop, (IMAGE_SIZE, IMAGE_SIZE))
+        except Exception as e:
+            logger.error(f"Crop extraction failed: {str(e)}")
+            return None
+
+    def fit(self, frame: np.ndarray, player_detections: Dict) -> None:
+        """Fit the classifier on current frame's player detections"""
+        try:
+            crops = []
+            for _, player in player_detections.items():
+                crop = self._get_player_crop(frame, player["bbox"])
+                if crop is not None:
+                    crops.append(crop)
+            
+            if len(crops) < MIN_PLAYERS:
+                logger.warning("Not enough players detected for classification")
+                return
+                
+            features = self._extract_features(crops)
+            reduced_features = self.reducer.fit_transform(features)
+            self.kmeans.fit(reduced_features)
+            
+        except Exception as e:
+            logger.error(f"Team classification failed: {str(e)}")
+            raise
+
+    def predict(self, frame: np.ndarray, bbox: List[float]) -> int:
+        """Predict team for a single player"""
+        try:
+            crop = self._get_player_crop(frame, bbox)
+            if crop is None:
+                return 1
+                
+            features = self._extract_features([crop])
+            reduced_features = self.reducer.transform(features)
+            team_id = self.kmeans.predict(reduced_features)[0] + 1
+            
+            return team_id
+        except Exception as e:
+            logger.error(f"Team prediction failed: {str(e)}")
+            return 1
 
 class TeamAssigner:
+    """Assigns players to teams and manages team colors"""
+    
     def __init__(self):
-        self.team_colors = {}
-        self.player_team_dict = {}
+        """Initialize team assigner"""
         self.device = self._get_device()
-        
-    def _get_device(self):
+        self.classifier = TeamClassifier(device=self.device)
+        self.player_team_dict: Dict[int, int] = {}
+        self.team_colors = {
+            team_id: self._hex_to_bgr(color)
+            for team_id, color in TEAM_COLORS.items()
+        }
+
+    @staticmethod
+    def _get_device() -> str:
+        """Determine best available computing device"""
         if torch.cuda.is_available():
             return 'cuda'
         elif torch.backends.mps.is_available():
             return 'mps'
-        else:
-            return 'cpu'
-    
-    def get_clustering_model(self, image):
-        # Convert image to torch tensor and move to appropriate device
-        image_tensor = torch.from_numpy(image).to(self.device)
-        
-        # Reshape the image to 2D array
-        image_2d = image_tensor.reshape(-1, 3)
-        
-        # If using GPU, convert back to CPU for KMeans
-        if self.device != 'cpu':
-            image_2d = image_2d.cpu().numpy()
-        else:
-            image_2d = image_2d.numpy()
-            
-        # Perform K-means with 2 clusters
-        kmeans = KMeans(n_clusters=2, init="k-means++", n_init=1)
-        
-        # Use smaller subset of data for fitting to reduce memory usage
-        sample_size = min(1000, image_2d.shape[0])
-        indices = np.random.choice(image_2d.shape[0], sample_size, replace=False)
-        kmeans.fit(image_2d[indices])
-        
-        return kmeans
+        return 'cpu'
 
-    def get_player_color(self, frame, bbox):
-        # Sample smaller patches instead of entire player region
-        patch_size = (32, 32)
-        y1, y2 = max(int(bbox[1]), 0), min(int(bbox[3]), frame.shape[0])
-        x1, x2 = max(int(bbox[0]), 0), min(int(bbox[2]), frame.shape[1])
-        
-        if y2 <= y1 or x2 <= x1:
-            return np.zeros(3, dtype=np.float32)
-        
-        # Take center patch
-        center_x = (x1 + x2) // 2
-        center_y = (y1 + y2) // 2
-        
-        patch_x1 = max(center_x - patch_size[0]//2, 0)
-        patch_x2 = min(center_x + patch_size[0]//2, frame.shape[1])
-        patch_y1 = max(center_y - patch_size[1]//2, 0)
-        patch_y2 = min(center_y + patch_size[1]//2, frame.shape[0])
-        
-        image = frame[patch_y1:patch_y2, patch_x1:patch_x2]
-        return self._process_image_patch(image)
+    @staticmethod
+    def _hex_to_bgr(hex_color: str) -> Tuple[int, int, int]:
+        """Convert hex color to BGR format for OpenCV"""
+        hex_color = hex_color.lstrip('#')
+        rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        return rgb[2], rgb[1], rgb[0]
 
-    def _process_image_patch(self, image):
-        if image.size == 0:
-            return np.zeros(3, dtype=np.float32)
-        
-        # Use only top half of the image
-        top_half_image = image[0:int(image.shape[0]/2), :]
-        
-        # Reduce image size if too large
-        if top_half_image.shape[0] * top_half_image.shape[1] > 10000:
-            scale = np.sqrt(10000 / (top_half_image.shape[0] * top_half_image.shape[1]))
-            new_size = (int(top_half_image.shape[1] * scale), int(top_half_image.shape[0] * scale))
-            top_half_image = cv2.resize(top_half_image, new_size)
-
-        # Convert to float32 for better precision
-        top_half_image = top_half_image.astype(np.float32)
-        
-        # Get Clustering model
-        kmeans = self.get_clustering_model(top_half_image)
-        
-        # Get the cluster labels for each pixel
-        labels = kmeans.predict(top_half_image.reshape(-1, 3))
-        
-        # Reshape the labels to the image shape
-        clustered_image = labels.reshape(top_half_image.shape[0], top_half_image.shape[1])
-        
-        # Get the player cluster
-        corner_clusters = [
-            clustered_image[0,0],
-            clustered_image[0,-1],
-            clustered_image[-1,0],
-            clustered_image[-1,-1]
-        ]
-        non_player_cluster = max(set(corner_clusters), key=corner_clusters.count)
-        player_cluster = 1 - non_player_cluster
-        
-        return kmeans.cluster_centers_[player_cluster].astype(np.float32)
-
-    def assign_team_color(self, frame, player_detections):
-        # Convert list of colors to numpy array first, then to tensor
-        player_colors = []
-        batch_size = 10
-        
+    def assign_team_color(self, frame: np.ndarray, player_detections: Dict) -> None:
+        """Assign team colors to detected players"""
         try:
-            for i in range(0, len(player_detections), batch_size):
-                batch = list(player_detections.items())[i:i+batch_size]
-                batch_colors = []
-                
-                for _, player_detection in batch:
-                    bbox = player_detection["bbox"]
-                    player_color = self.get_player_color(frame, bbox)
-                    batch_colors.append(player_color)
-                
-                # Convert batch to numpy array first
-                batch_colors = np.array(batch_colors, dtype=np.float32)
-                player_colors.append(batch_colors)
-                
-                if self.device == 'cuda':
-                    torch.cuda.empty_cache()
-            
-            if not player_colors:
-                return
-            
-            # Combine all batches into single numpy array
-            player_colors = np.concatenate(player_colors, axis=0)
-            
-            # Convert numpy array to tensor
-            colors_tensor = torch.from_numpy(player_colors).to(self.device)
-            
-            # Use PyTorch K-means implementation or move back to CPU for sklearn
-            if self.device != 'cpu':
-                colors_tensor = colors_tensor.cpu()
-            
-            kmeans = KMeans(n_clusters=2, init="k-means++", n_init=10)
-            kmeans.fit(colors_tensor)
-            
-            self.kmeans = kmeans
-            self.team_colors[1] = kmeans.cluster_centers_[0]
-            self.team_colors[2] = kmeans.cluster_centers_[1]
-            
+            self.classifier.fit(frame, player_detections)
         except Exception as e:
-            print(f"Error in assign_team_color: {str(e)}")
-            # Fallback to CPU if there's an error
+            logger.error(f"Team color assignment failed: {str(e)}")
             if self.device != 'cpu':
+                logger.info("Falling back to CPU processing")
                 self.device = 'cpu'
+                self.classifier = TeamClassifier(device=self.device)
                 self.assign_team_color(frame, player_detections)
 
-    def get_player_team(self, frame, player_bbox, player_id):
+    def get_player_team(self, frame: np.ndarray, player_bbox: List[float], 
+                       player_id: int) -> int:
+        """Get team assignment for a player"""
         if player_id in self.player_team_dict:
             return self.player_team_dict[player_id]
             
-        player_color = self.get_player_color(frame, player_bbox)
-        
-        # Convert to tensor for prediction
-        color_tensor = torch.tensor(player_color.reshape(1, -1))
-        if self.device != 'cpu':
-            color_tensor = color_tensor.cpu()
-            
-        team_id = self.kmeans.predict(color_tensor)[0] + 1
-        
-        # Special case handling
-        if player_id == 91:
-            team_id = 1
-            
+        team_id = self.classifier.predict(frame, player_bbox)
         self.player_team_dict[player_id] = team_id
         return team_id

@@ -1,9 +1,11 @@
 from tkinter import *
+from tkinter import messagebox
 from pathlib import Path
 from gui.home_GUI.home import Home
 from gui.analysis_GUI.analysis import Analysis, output_video_path, stop_video_stream
 from gui.statistics_GUI.statistics import Statistics
 from gui.about_GUI.about import About
+from gui.scripts.state import get_analyzing_state
 import os
 
 OUTPUT_PATH = Path(__file__).parent
@@ -14,6 +16,12 @@ def relative_to_assets(path: str) -> Path:
 # ~ FUNCTIONS FOR BUTTONS FOR CHANGING TABS ~ #
 def handle_button_press(btn_name):
     global current_window
+    
+    # Check analysis state from state global
+    if get_analyzing_state():
+        messagebox.showwarning("Analysis in Progress", "Please wait until the analysis is complete before switching tabs.")
+        return
+        
     reset_button_images()
 
     # Stop video if leaving analysis page
@@ -26,7 +34,6 @@ def handle_button_press(btn_name):
     elif btn_name == "analysis":
         analysis_button.config(image=analysis_button_active_image)
         current_window = Analysis(window)
-        # Restart video if returning to analysis page
         if hasattr(current_window, 'display_video') and os.path.exists(output_video_path):
             current_window.display_video()
     elif btn_name == "statistics":

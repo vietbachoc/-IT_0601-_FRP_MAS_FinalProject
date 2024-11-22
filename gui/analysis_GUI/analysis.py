@@ -17,6 +17,9 @@ from backend.view_transformer import ViewTransformer
 from backend.speed_and_distance_estimator import SpeedAndDistance_Estimator
 import numpy as np
 
+# Import global state variables
+from gui.scripts.state import set_analyzing_state, get_analyzing_state
+
 OUTPUT_PATH = Path(__file__).parent
 ASSETS_PATH = OUTPUT_PATH / Path("./assets")
 
@@ -57,6 +60,8 @@ def run_analysis():
     if not video_path:
         messagebox.showerror("No Video Selected", "Please upload a video before running the analysis.")
         return
+
+    set_analyzing_state(True)
 
     # Cleanup current video state
     cleanup_current_video()
@@ -187,13 +192,15 @@ def run_analysis():
             video_frame_label.after(0, lambda: show_error(analyzing_container, str(e)))
 
     def complete_analysis(container):
+        set_analyzing_state(False)
         container.destroyed = True
         container.destroy()
         messagebox.showinfo("Analysis Complete", f"Analysis complete. Video saved to: {output_video_path}")
-        show_buttons()  # Show buttons after analysis complete
+        show_buttons()
         display_video()
 
     def show_error(container, error_message):
+        set_analyzing_state(False)
         container.destroyed = True
         container.destroy()
         messagebox.showerror("Error", f"An error occurred during analysis: {error_message}")
@@ -246,8 +253,8 @@ def update_frame():
         
     ret, frame = cap.read()
     if ret:
-        current_frame = frame.copy()  # Save current frame
-        display_frame(current_frame)  # Display using the saved frame
+        current_frame = frame.copy()
+        display_frame(current_frame)
         video_frame_label.after_id = video_frame_label.after(frame_delay, update_frame)
     else:
         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -260,7 +267,7 @@ def pause_video():
     global video_stream_active
     video_stream_active = not video_stream_active
     if video_stream_active:
-        update_frame()  # Gọi update_frame trực tiếp khi resume
+        update_frame()
 
 def restart_video():
     global cap
@@ -271,7 +278,7 @@ def toggle_fullscreen():
     global video_frame_label, cap
     if video_frame_label.winfo_width() == 915:  # Normal size
         video_frame_label.place(x=0, y=0, width=1282, height=722)
-        video_frame_label.configure(bg="white")  # Set background color
+        video_frame_label.configure(bg="white")
         video_frame_label.lift()
         
         # Resize current frame if video is paused
