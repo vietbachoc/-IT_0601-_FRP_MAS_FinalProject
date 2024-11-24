@@ -6,6 +6,7 @@ import cv2
 import time
 import threading
 from PIL import Image, ImageTk
+import gc
 
 # Import backend processing functions
 from backend.utils import read_video, save_video
@@ -163,20 +164,53 @@ def run_analysis():
                     tracks['players'][frame_num][player_id]['team'] = team 
                     tracks['players'][frame_num][player_id]['team_color'] = team_assigner.team_colors[team]
 
-            
             # Assign Ball Aquisition
-            player_assigner =PlayerBallAssigner()
-            team_ball_control= []
-            for frame_num, player_track in enumerate(tracks['players']):
+            player_assigner = PlayerBallAssigner()
+            team_ball_control = []
+            
+            # Find the first frame where the player has the ball and initialize the initial state
+            initial_frame = 0
+            current_possession = None
+            
+            # Find the initial ball control state in the first 10 frames
+            for frame_num in range(min(10, len(tracks['players']))):
                 ball_bbox = tracks['ball'][frame_num][1]['bbox']
-                assigned_player = player_assigner.assign_ball_to_player(player_track, ball_bbox)
+                assigned_player = player_assigner.assign_ball_to_player(tracks['players'][frame_num], ball_bbox)
+                
+                if assigned_player != -1:
+                    current_possession = tracks['players'][frame_num][assigned_player]['team']
+                    initial_frame = frame_num
+                    break
+            
+            # Fill frames from start to found frame
+            team_ball_control.extend([current_possession] * (initial_frame + 1))
+            
+            # Process remaining frames with small buffers to avoid sudden changes
+            possession_buffer = []
+            BUFFER_SIZE = 3
+            
+            for frame_num in range(initial_frame + 1, len(tracks['players'])):
+                ball_bbox = tracks['ball'][frame_num][1]['bbox']
+                assigned_player = player_assigner.assign_ball_to_player(tracks['players'][frame_num], ball_bbox)
 
                 if assigned_player != -1:
                     tracks['players'][frame_num][assigned_player]['has_ball'] = True
-                    team_ball_control.append(tracks['players'][frame_num][assigned_player]['team'])
+                    new_possession = tracks['players'][frame_num][assigned_player]['team']
+                    possession_buffer.append(new_possession)
                 else:
-                    team_ball_control.append(team_ball_control[-1])
-            team_ball_control= np.array(team_ball_control)
+                    possession_buffer.append(current_possession)
+                    
+                # Only update possession when buffer is large enough and consistent
+                if len(possession_buffer) >= BUFFER_SIZE:
+                    most_common = max(set(possession_buffer), key=possession_buffer.count)
+                    if possession_buffer.count(most_common) >= BUFFER_SIZE - 1:
+                        current_possession = most_common
+                    possession_buffer.pop(0)
+                    
+                team_ball_control.append(current_possession)
+            
+            # Convert to numpy array for more efficient processing
+            team_ball_control = np.array(team_ball_control)
 
             # Draw annotations
             output_video_frames = tracker.draw_annotations(video_frames, tracks, team_ball_control)
@@ -198,6 +232,7 @@ def run_analysis():
         messagebox.showinfo("Analysis Complete", f"Analysis complete. Video saved to: {output_video_path}")
         show_buttons()
         display_video()
+        cleanup_memory()
 
     def show_error(container, error_message):
         set_analyzing_state(False)
@@ -211,6 +246,7 @@ def run_analysis():
     analysis_thread = threading.Thread(target=analysis_thread)
     analysis_thread.daemon = True
     analysis_thread.start()
+    cleanup_memory()
 
 def display_video():
     """
@@ -351,6 +387,16 @@ def cleanup_current_video():
     # Clear video display
     if video_frame_label is not None:
         video_frame_label.configure(image='')
+
+def cleanup_memory():
+    global video_frames, tracks, camera_movement_per_frame, output_video_frames
+    video_frames = None
+    tracks = None
+    camera_movement_per_frame = None
+    output_video_frames = None
+
+    # Call garbage collector
+    gc.collect()
 
 def Analysis(parent):
     """
