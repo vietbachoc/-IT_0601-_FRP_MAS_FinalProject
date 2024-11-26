@@ -83,15 +83,3 @@ def About(parent):
         fill="#2E236C",
         font=("Lato ExtraBold", 25 * -1)
     )
-
-    ############# Greetings/Hello #############
-    from gui.scripts.greetings import greet
-    canvas.create_text(
-        800.0,
-        40.0,
-        anchor="nw",
-        text=greet(),
-        fill="#2E236C",
-        font=("Montserrat SemiBold", 35 * -1)
-    )
-    ###########################################

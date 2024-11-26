@@ -15,9 +15,7 @@ foreach ($dir in $directories) {
 
 # Download files using gdown
 $downloads = @(
-    @{url = "https://drive.google.com/uc?id=1kulJgSLBrZdKLsm-b-q_EOCAYrtOyUO_"; file = "backend\models\football-ball-detection.pt"},
     @{url = "https://drive.google.com/uc?id=1-g2ijN-XP9YB1mqkfysB9MhoFzruZ9Hk"; file = "backend\models\football-player-detection.pt"},
-    @{url = "https://drive.google.com/uc?id=1bi807YZ6s_zyCWsSnQgiMOGiU_KzvkaQ"; file = "backend\models\football-pitch-detection.pt"},
     @{url = "https://drive.google.com/uc?id=11gspdS21z99gZUIiRq5FyRlWc0UDMe-l"; file = "videos\0bfacc_0.mp4"},
     @{url = "https://drive.google.com/uc?id=19o26em2UpDY9F_Mmh8eB0tXlVJQ0mm-b"; file = "videos\2e57b9_0.mp4"},
     @{url = "https://drive.google.com/uc?id=1O5yJvdBUIEnZyBNMWMloGjxg79b18pwT"; file = "videos\08fd33_0.mp4"},

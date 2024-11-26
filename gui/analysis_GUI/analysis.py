@@ -474,18 +474,6 @@ def Analysis(parent):
         height=50.0
     )
 
-    ############# Greetings/Hello #############
-    from gui.scripts.greetings import greet
-    canvas.create_text(
-        800.0,
-        40.0,
-        anchor="nw",
-        text=greet(),
-        fill="#2E236C",
-        font=("Montserrat SemiBold", 35 * -1)
-    )
-    ###########################################
-
     # Add key bindings
     parent.bind('p', lambda e: pause_video())
     parent.bind('r', lambda e: restart_video())

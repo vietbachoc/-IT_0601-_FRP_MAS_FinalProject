@@ -25,9 +25,7 @@ else
 fi
 
 # download the models into 'backend/models'
-gdown -O "$DIR/backend/models/football-ball-detection.pt" "https://drive.google.com/uc?id=1kulJgSLBrZdKLsm-b-q_EOCAYrtOyUO_"
 gdown -O "$DIR/backend/models/football-player-detection.pt" "https://drive.google.com/uc?id=1-g2ijN-XP9YB1mqkfysB9MhoFzruZ9Hk"
-gdown -O "$DIR/backend/models/football-pitch-detection.pt" "https://drive.google.com/uc?id=1bi807YZ6s_zyCWsSnQgiMOGiU_KzvkaQ"
 
 # download the videos into 'videos'
 gdown -O "$DIR/videos/0bfacc_0.mp4" "https://drive.google.com/uc?id=11gspdS21z99gZUIiRq5FyRlWc0UDMe-l"

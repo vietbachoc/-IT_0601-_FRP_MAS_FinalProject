@@ -27,6 +27,10 @@ def handle_button_press(btn_name):
     # Stop video if leaving analysis page
     if hasattr(current_window, 'stop_video_stream'):
         current_window.stop_video_stream()
+        
+    # Stop home background animation if leaving home page
+    if hasattr(window, 'home_bg_handler'):
+        window.home_bg_handler.stop_animation()
 
     if btn_name == "home":
         home_button.config(image=home_button_active_image)
