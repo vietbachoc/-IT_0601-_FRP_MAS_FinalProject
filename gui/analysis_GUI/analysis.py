@@ -7,6 +7,7 @@ import time
 import threading
 from PIL import Image, ImageTk
 import gc
+import matplotlib.pyplot as plt
 
 # Import backend processing functions
 from backend.utils import read_video, save_video
@@ -16,10 +17,12 @@ from backend.player_ball_assigner import PlayerBallAssigner
 from backend.camera_movement_estimator import CameraMovementEstimator
 from backend.view_transformer import ViewTransformer
 from backend.speed_and_distance_estimator import SpeedAndDistance_Estimator
+from backend.statistics_calculator import StatisticsCalculator
 import numpy as np
 
 # Import global state variables
 from gui.scripts.state import set_analyzing_state, get_analyzing_state
+from gui.scripts.statistics_state import update_team_statistics
 
 OUTPUT_PATH = Path(__file__).parent
 ASSETS_PATH = OUTPUT_PATH / Path("./assets")
@@ -219,6 +222,14 @@ def run_analysis():
 
             # Save output video
             save_video(output_video_frames, output_video_path)
+
+            # Calculate statistics
+            statistics_calculator = StatisticsCalculator()
+            statistics_calculator.calculate_statistics(tracks, team_ball_control)
+
+            # After statistics calculation
+            statistics = statistics_calculator.team_stats
+            update_team_statistics(statistics)
 
             # After analysis is complete
             video_frame_label.after(0, lambda: complete_analysis(analyzing_container))
@@ -487,6 +498,76 @@ def Analysis(parent):
     if current_frame is not None:
         display_frame(current_frame)
     
+    def cleanup():
+        try:
+            # Cleanup matplotlib resources
+            plt.close('all')
+            plt.clf()
+            plt.cla()
+            
+            # Cancel all scheduled updates
+            try:
+                for after_id in parent.tk.eval('after info').split():
+                    try:
+                        parent.after_cancel(after_id)
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+                
+            # Clear video resources
+            if hasattr(canvas, 'video'):
+                canvas.video = None
+                
+            if hasattr(canvas, 'video_player'):
+                if hasattr(canvas.video_player, 'after_id'):
+                    try:
+                        parent.after_cancel(canvas.video_player.after_id)
+                    except Exception:
+                        pass
+                canvas.video_player = None
+                
+            # Clear all stored data
+            for attr in dir(canvas):
+                if not attr.startswith('__'):
+                    try:
+                        setattr(canvas, attr, None)
+                    except Exception:
+                        continue
+                    
+            try:
+                canvas.destroy()
+            except Exception:
+                pass
+                
+            # Force garbage collection with generations
+            gc.collect(0)  # Collect young generation
+            gc.collect(1)  # Collect middle generation
+            gc.collect(2)  # Collect old generation
+            
+        except Exception as e:
+            print(f"Error during cleanup: {str(e)}")
+
+    def stop_video_stream():
+        try:
+            global video_stream_active
+            video_stream_active = False
+            
+            if hasattr(canvas, 'video_player'):
+                if hasattr(canvas.video_player, 'after_id'):
+                    try:
+                        parent.after_cancel(canvas.video_player.after_id)
+                    except Exception:
+                        pass
+                canvas.video_player = None
+                
+        except Exception as e:
+            print(f"Error during video stream stop: {str(e)}")
+
+    # Add cleanup method to canvas
+    canvas.cleanup = cleanup
+    canvas.stop_video_stream = stop_video_stream
+
     return canvas
 
 def hide_buttons():

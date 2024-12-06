@@ -7,6 +7,7 @@ from gui.statistics_GUI.statistics import Statistics
 from gui.about_GUI.about import About
 from gui.scripts.state import get_analyzing_state
 import os
+import matplotlib.pyplot as plt
 
 OUTPUT_PATH = Path(__file__).parent
 ASSETS_PATH = OUTPUT_PATH / Path("./gui/assets")
@@ -53,11 +54,62 @@ def reset_button_images():
     statistics_button.config(image=statistics_button_default_image)
     about_button.config(image=about_button_default_image)
 
+def on_closing():
+    try:
+        global current_window
+        
+        # Stop video playback if it's running
+        if current_window and hasattr(current_window, 'stop_video_stream'):
+            current_window.stop_video_stream()
+        
+        # Try to cancel all after events safely
+        try:
+            for after_id in window.tk.eval('after info').split():
+                try:
+                    window.after_cancel(after_id)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+            
+        # Cleanup current window if exists
+        if current_window and hasattr(current_window, 'cleanup'):
+            try:
+                current_window.cleanup()
+            except Exception:
+                pass
+        
+        # Cleanup matplotlib
+        try:
+            plt.close('all')
+        except Exception:
+            pass
+            
+        # Force garbage collection
+        try:
+            import gc
+            gc.collect()
+        except Exception:
+            pass
+            
+        # Finally destroy the window
+        window.quit()
+        window.destroy()
+        
+    except Exception as e:
+        print(f"Error during window closing: {str(e)}")
+        # Force quit if normal closing fails
+        try:
+            window.quit()
+            window.destroy()
+        except:
+            pass
 
 window = Tk()
 window.title("Football Analysis")
 window.geometry("1282x722")
 window.configure(bg="#17153B")
+window.protocol("WM_DELETE_WINDOW", on_closing)
 
 '''For Icon'''
 # window.iconbitmap(relative_to_assets("icon.ico"))
