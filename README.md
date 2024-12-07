@@ -46,8 +46,8 @@ The Football Video Analyzer is a comprehensive application designed to revolutio
 
 1. **Clone the Repository**
     ```bash
-    git clone https://github.com/yourusername/football-video-analyzer.git
-    cd football-video-analyzer
+    git clone https://github.com/vietbachoc/Football-Video-Analyzer.git
+    cd Football-Video-Analyzer
     ```
 
 2. **Create a Virtual Environment**
